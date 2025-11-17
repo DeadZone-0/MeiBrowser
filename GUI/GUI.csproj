@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="icons\custom.png" />
     <None Remove="icons\file.png" />
     <None Remove="icons\file2.png" />
     <None Remove="icons\folder.png" />
@@ -29,6 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="icons\custom.png" />
     <Resource Include="icons\file.png" />
     <Resource Include="icons\file2.png" />
     <Resource Include="icons\folder.png" />

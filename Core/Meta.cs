@@ -12,7 +12,8 @@ namespace Core
     {
         private static readonly HttpClient client = new();
 
-        public static async Task<(List<string> versions, string packageId, string password)> GetVersions(string game, string region) {
+        public static async Task<(List<string> versions, string packageId, string password)> GetVersions(string game, string region)
+        {
             Console.WriteLine($"Fetching versions for {game} in {region}...");
 
             var gameMeta = await Sophon.GetGameBranches(game, region);
@@ -42,6 +43,17 @@ namespace Core
 
             var build = await Sophon.GetBuild(region, packageId, password, $"{version}.0");
 
+            return await GetPackagesInternal(build);
+        }
+
+        public static async Task<List<string[]>> GetCustomPackages(string url)
+        {
+            var build = await Sophon.GetCustomBuild(url);
+            return await GetPackagesInternal(build);
+        }
+
+        private static async Task<List<string[]>> GetPackagesInternal(JObject build)
+        {
             List<string[]> packages = new();
 
             foreach (var package in build["data"]["manifests"])

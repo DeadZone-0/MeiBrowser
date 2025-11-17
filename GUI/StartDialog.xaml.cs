@@ -24,6 +24,8 @@ namespace GUI
         public string SelectedCategory { get; private set; }
         public string SelectedMode { get; private set; }
 
+        private string customSophonUrl;
+
         private string currentPackageId;
         private string currentPassword;
 
@@ -39,8 +41,6 @@ namespace GUI
                 new ComboBoxItem() { Content = "Sophon" },
                 new ComboBoxItem() { Content = "Dispatch" }
             };
-
-            ResetGameCombo();
 
             this.Title = "Select Game Options";
         }
@@ -58,7 +58,7 @@ namespace GUI
         private void ResetGameCombo()
         {
             GameCombo.ItemsSource = null;
-            GameCombo.ItemsSource = new[]
+            var source = new[]
             {
                 new { Name = "Genshin Impact", Icon = "pack://application:,,,/icons/hk4e.png", Id = "hk4e" },
                 new { Name = "Honkai: Star Rail", Icon = "pack://application:,,,/icons/hkrpg.png", Id = "hkrpg" },
@@ -66,10 +66,21 @@ namespace GUI
                 // TODO: add hi3 support
                 //new { Name = "Honkai Impact 3rd", Icon = "pack://application:,,,/icons/bh3.png", Id = "bh3" }, // hi3 needs lot of hardcoded stuff cuz it's different
             };
+
+            if (SelectedMode == "Sophon")
+            {
+                var list = source.ToList();
+                list.Add(new { Name = "Custom Sophon URL", Icon = "pack://application:,,,/icons/custom.png", Id = "custom" });
+                source = list.ToArray();
+            }
+
+            GameCombo.ItemsSource = source;
         }
 
         private void ModeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            SelectedMode = (string)(ModeCombo.SelectedItem as ComboBoxItem).Content.ToString();
+
             ResetGameCombo();
             GameCombo.IsEnabled = true;
 
@@ -88,46 +99,63 @@ namespace GUI
         private async void GameCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (GameCombo.SelectedItem == null) return;
+            SelectedGame = ((dynamic)GameCombo.SelectedItem).Id;
 
-            if ((string)(ModeCombo.SelectedItem as ComboBoxItem).Content == "Sophon")
+            ServerCombo.ItemsSource = null;
+            VersionCombo.ItemsSource = null;
+
+            CustomSophonTitle.Visibility = Visibility.Hidden;
+            CustomSophonUrl.Visibility = Visibility.Hidden;
+            CustomSophonUrl.Text = "";
+            customSophonUrl = "";
+            CheckSophonButton.Visibility = Visibility.Hidden;
+
+            ServerTitle.Visibility = Visibility.Visible;
+            ServerCombo.Visibility = Visibility.Visible;
+
+            if (SelectedMode == "Sophon")
             {
-                ServerCombo.IsEnabled = true;
-                ServerCombo.ItemsSource = null;
-
-                ServerCombo.ItemsSource = new[]
+                // custom sophon
+                if (SelectedGame == "custom")
                 {
-                    new ComboBoxItem() { Content = "OS" },
-                    new ComboBoxItem() { Content = "CN" }
-                };
+                    CustomSophonTitle.Visibility = Visibility.Visible;
+                    CustomSophonUrl.Visibility = Visibility.Visible;
+                    CheckSophonButton.Visibility = Visibility.Visible;
 
-                VersionCombo.IsEnabled = false;
-                VersionCombo.ItemsSource = null;
+                    ServerTitle.Visibility = Visibility.Hidden;
+                    ServerCombo.Visibility = Visibility.Hidden;
+                } else
+                {
+                    ServerCombo.ItemsSource = new[]
+                    {
+                        new ComboBoxItem() { Content = "OS" },
+                        new ComboBoxItem() { Content = "CN" }
+                    };
+
+                    VersionCombo.IsEnabled = false;
+                }
+                ServerCombo.IsEnabled = true;
             } else
             {
-                ServerCombo.IsEnabled = false;
-                ServerCombo.ItemsSource = null;
-
-                VersionCombo.ItemsSource = null;
-
                 LoadingOverlay.Visibility = Visibility.Visible;
-                var versions = await Dispatch.GetDispatchVersions(((dynamic)GameCombo.SelectedItem).Id);
+                var versions = await Dispatch.GetDispatchVersions(SelectedGame);
                 LoadingOverlay.Visibility = Visibility.Collapsed;
 
                 VersionCombo.ItemsSource = versions;
                 VersionCombo.IsEnabled = true;
             }
 
-                CategoryCombo.IsEnabled = false;
+            CategoryCombo.IsEnabled = false;
             CategoryCombo.ItemsSource = null;
 
             ConfirmButton.IsEnabled = false;
-
-            
         }
 
         private async void ServerCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (ServerCombo.SelectedItem == null) return;
+            SelectedServer = (ServerCombo.SelectedItem as ComboBoxItem)?.Content.ToString();
+
             VersionCombo.IsEnabled = false;
             CategoryCombo.IsEnabled = false;
             VersionCombo.ItemsSource = null;
@@ -138,7 +166,7 @@ namespace GUI
             currentPassword = null;
 
             LoadingOverlay.Visibility = Visibility.Visible;
-            dynamic metaData = await Meta.GetVersions(((dynamic)GameCombo.SelectedItem).Id, (string)(ServerCombo.SelectedItem as ComboBoxItem).Content);
+            dynamic metaData = await Meta.GetVersions(SelectedGame, SelectedServer);
             var versions = (List<string>)metaData.Item1;
             currentPackageId = (string)metaData.Item2;
             currentPassword = (string)metaData.Item3;
@@ -151,6 +179,8 @@ namespace GUI
         private async void VersionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (VersionCombo.SelectedItem == null) return;
+            SelectedVersion = VersionCombo.SelectedItem?.ToString();
+
             CategoryCombo.IsEnabled = false;
             CategoryCombo.ItemsSource = null;
             ConfirmButton.IsEnabled = false;
@@ -158,17 +188,16 @@ namespace GUI
             ComboBoxItem[] packageItems = Array.Empty<ComboBoxItem>();
 
             LoadingOverlay.Visibility = Visibility.Visible;
-            if ((string)(ModeCombo.SelectedItem as ComboBoxItem).Content == "Sophon")
+            if (SelectedMode == "Sophon")
             {
-                
-                var packages = await Meta.GetPackages((string)(ServerCombo.SelectedItem as ComboBoxItem).Content, (string)VersionCombo.SelectedItem, currentPackageId, currentPassword);
+                var packages = SelectedGame == "custom" ? await Meta.GetCustomPackages(customSophonUrl) : await Meta.GetPackages(SelectedServer, SelectedVersion, currentPackageId, currentPassword);
 
                 packageItems = packages.Select(p =>
                     new ComboBoxItem() { Content = $"{p[1]} - {p[2]}", Tag = p[0] }
                 ).ToArray();
             } else
             {
-                List<string> packages = await Dispatch.GetPackages(((dynamic)GameCombo.SelectedItem).Id, (string)VersionCombo.SelectedItem);
+                List<string> packages = await Dispatch.GetPackages(SelectedGame, SelectedVersion);
 
                 packageItems = packages.Select(p =>
                     new ComboBoxItem() { Content = p, Tag = p.ToLower() }
@@ -182,18 +211,48 @@ namespace GUI
 
         private async void CategoryCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            SelectedCategory = ((dynamic)CategoryCombo.SelectedItem)?.Tag;
             ConfirmButton.IsEnabled = true;
         }
 
         private void Confirm_Click(object sender, RoutedEventArgs e)
         {
             allowClose = true;
-            SelectedGame = ((dynamic)GameCombo.SelectedItem)?.Id;
-            SelectedServer = (ServerCombo.SelectedItem as ComboBoxItem)?.Content.ToString();
-            SelectedCategory = ((dynamic)CategoryCombo.SelectedItem)?.Tag;
-            SelectedMode = (ModeCombo.SelectedItem as ComboBoxItem)?.Content.ToString();
-            SelectedVersion = SelectedMode == "Sophon" ? $"{VersionCombo.SelectedItem?.ToString()}.0" : VersionCombo.SelectedItem?.ToString();
+            SelectedVersion = SelectedMode == "Sophon" ? $"{SelectedVersion}.0" : SelectedVersion;
+            if (SelectedGame == "custom")
+            {
+                SelectedServer = customSophonUrl;
+            }
             DialogResult = true;
+        }
+
+        private void ModeHelpButton_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Sophon mode is the new method to download files, it is better & faster.\n\nDispatch mode is the old method, while older it provides content such as full game zip, update zip, and files from versions earlier than when sophon was available, consider it the legacy mode.", "Mode Information", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private async void CheckSophonButton_Click(object sender, RoutedEventArgs e)
+        {
+            LoadingOverlay.Visibility = Visibility.Visible;
+
+            try
+            {
+                customSophonUrl = CustomSophonUrl.Text;
+                var version = await Sophon.CheckBuild(customSophonUrl);
+                VersionCombo.ItemsSource = null;
+                VersionCombo.ItemsSource = new[] { version };
+                VersionCombo.IsEnabled = true;
+
+                CategoryCombo.ItemsSource = null;
+                CategoryCombo.IsEnabled = false;
+
+                ConfirmButton.IsEnabled = false;
+            } catch
+            {
+                MessageBox.Show("Failed to fetch sophon build from the provided URL. Make sure it is a /getBuild URL and try again.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            LoadingOverlay.Visibility = Visibility.Collapsed;
         }
     }
 

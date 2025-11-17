@@ -29,15 +29,37 @@ namespace Core
             return buildJson;
         }
 
+        public static async Task<JObject> GetCustomBuild(string url)
+        {
+            var buildUrl = url;
+            var buildJson = JObject.Parse(await client.GetStringAsync(buildUrl));
+            return buildJson;
+        }
+
+        public static async Task<string> CheckBuild(string url)
+        {
+            var buildJson = JObject.Parse(await client.GetStringAsync(url));
+            var version = buildJson["data"]["tag"].ToString();
+            return version;
+        }
+
         public static async Task<(SophonManifestProto, string)> GetManifest(string game, string version, string region, string categoryId)
         {
-            var metaJson = await GetGameBranches(game, region);
+            var buildJson = new JObject();
 
-            var gameMeta = metaJson["data"]["game_branches"][0][branch];
-            string packageId = gameMeta["package_id"]!.ToString();
-            string password = gameMeta["password"]!.ToString();
+            if (game != "custom")
+            {
+                var metaJson = await GetGameBranches(game, region);
 
-            var buildJson = await GetBuild(region, packageId, password, version);
+                var gameMeta = metaJson["data"]["game_branches"][0][branch];
+                string packageId = gameMeta["package_id"]!.ToString();
+                string password = gameMeta["password"]!.ToString();
+
+                buildJson = await GetBuild(region, packageId, password, version);
+            } else
+            {
+                buildJson = await GetCustomBuild(region);
+            }
 
             var gameData = buildJson["data"];
 
