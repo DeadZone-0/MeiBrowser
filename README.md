@@ -9,8 +9,8 @@ Browse any hoyo games files &amp; download them at any version without having th
 
 ![img](https://bin.escartem.moe/2025/11/17/6pIqZRCeEH.png)
 
-## Browse dispatch files
-Dispatch being the old method before sophon, allowing access to early versions of the games
+## Browse scattered files
+Scattered files being the old method before sophon, allowing access to early versions of the games
 
 ![img](https://bin.escartem.moe/2025/11/17/wipbd2J6aY.png)
 
