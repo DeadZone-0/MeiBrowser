@@ -20,8 +20,7 @@ namespace Core
             var latest = (string)gameMeta["data"]["game_branches"][0]["main"]["tag"];
             latest = string.Join('.', latest.Split('.').Take(2));
 
-            var metaUrl = "https://raw.githubusercontent.com/umaichanuwu/meta/refs/heads/master/hoyodata.json";
-            var metaJson = JObject.Parse(await client.GetStringAsync(metaUrl));
+            var metaJson = await Dispatch.GetDispatchData();
 
             var versions = ((JObject)metaJson[game]["sophonHashes"]).Properties().Select(p => p.Name).ToList();
 

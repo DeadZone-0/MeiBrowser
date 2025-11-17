@@ -7,11 +7,12 @@
         WindowStartupLocation="CenterOwner"
         WindowStyle="ToolWindow" ResizeMode="NoResize"
         mc:Ignorable="d"
-        Title="StartDialog" Height="350" Width="600">
+        Title="StartDialog" Height="420" Width="600">
 
     <Grid>
         <Grid Margin="20">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -22,10 +23,15 @@
                 <ColumnDefinition Width="150"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            
+
+            <!-- Mode -->
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Mode:" VerticalAlignment="Center"/>
+            <ComboBox Margin="15" x:Name="ModeCombo" Grid.Column="1" Grid.Row="0" Height="30"
+                SelectionChanged="ModeCombo_SelectionChanged" />
+
             <!-- Game -->
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Game:" VerticalAlignment="Center"/>
-            <ComboBox Margin="15" Grid.Row="0" Grid.Column="1" x:Name="GameCombo" Height="30" SelectionChanged="GameCombo_SelectionChanged">
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Game:" VerticalAlignment="Center"/>
+            <ComboBox Margin="15" Grid.Row="1" Grid.Column="1" x:Name="GameCombo" Height="30" IsEnabled="False" SelectionChanged="GameCombo_SelectionChanged">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">
@@ -37,24 +43,24 @@
             </ComboBox>
 
             <!-- Server -->
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Region:" VerticalAlignment="Center"/>
-            <ComboBox Margin="15" x:Name="ServerCombo" Grid.Column="1" Grid.Row="1" Height="30"
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Region:" VerticalAlignment="Center"/>
+            <ComboBox Margin="15" x:Name="ServerCombo" Grid.Column="1" Grid.Row="2" Height="30"
                     IsEnabled="False"
                     SelectionChanged="ServerCombo_SelectionChanged" />
 
             <!-- Version -->
-            <TextBlock Grid.Row="2" Grid.Column="0" Text="Version:" VerticalAlignment="Center"/>
-            <ComboBox Margin="15" x:Name="VersionCombo" Grid.Column="1" Grid.Row="2" Height="30"
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Version:" VerticalAlignment="Center"/>
+            <ComboBox Margin="15" x:Name="VersionCombo" Grid.Column="1" Grid.Row="3" Height="30"
                     IsEnabled="False"
                     SelectionChanged="VersionCombo_SelectionChanged"/>
 
             <!-- Category -->
-            <TextBlock Grid.Row="3" Grid.Column="0" Text="Package:" VerticalAlignment="Center"/>
-            <ComboBox Margin="15" x:Name="CategoryCombo" Grid.Column="1" Grid.Row="3" Height="30"
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="Package:" VerticalAlignment="Center"/>
+            <ComboBox Margin="15" x:Name="CategoryCombo" Grid.Column="1" Grid.Row="4" Height="30"
                     IsEnabled="False"
                     SelectionChanged="CategoryCombo_SelectionChanged"/>
 
-            <Button x:Name="ConfirmButton" IsEnabled="False" Grid.Row="4" Grid.Column="2" Content="Confirm" Height="32" Width="100"
+            <Button x:Name="ConfirmButton" IsEnabled="False" Grid.Row="5" Grid.Column="2" Content="Confirm" Height="32" Width="100"
                 HorizontalAlignment="Right" Click="Confirm_Click"/>
         </Grid>
 

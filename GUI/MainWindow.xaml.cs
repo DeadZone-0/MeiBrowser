@@ -24,6 +24,7 @@ namespace GUI
         private string version;
         private string region;
         private string categoryId;
+        private string mode;
         //
         private List<SophonManifestAssetProperty> toDownload = new();
         private long downloadSize = 0;
@@ -75,7 +76,8 @@ namespace GUI
                 region = popup.SelectedServer;
                 version = popup.SelectedVersion;
                 categoryId = popup.SelectedCategory;
-                Console.WriteLine($"Selected: {game}, {region}, {version}, {categoryId}");
+                mode = popup.SelectedMode;
+                Console.WriteLine($"Selected: {game}, {region}, {version}, {categoryId} as {mode}");
                 await UpdateFiles();
             }
         }
@@ -93,7 +95,14 @@ namespace GUI
 
             try
             {
-                var (manifest, buildDownloadUrl) = await Sophon.GetManifest(game, version, region, categoryId);
+                var (manifest, buildDownloadUrl) = mode == "Sophon" ? await Sophon.GetManifest(game, version, region, categoryId) : await Dispatch.GetFiles(game, version, categoryId);
+                if (manifest.Assets.Count == 0)
+                {
+                    LoadingOverlay.Visibility = Visibility.Collapsed;
+                    MessageBox.Show("No files found in this package.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    await ShowPopup();
+                    return;
+                }
                 downloadUrl = buildDownloadUrl;
 
                 foreach (var asset in manifest.Assets)

@@ -22,6 +22,7 @@ namespace GUI
         public string SelectedServer { get; private set; }
         public string SelectedVersion { get; private set; }
         public string SelectedCategory { get; private set; }
+        public string SelectedMode { get; private set; }
 
         private string currentPackageId;
         private string currentPassword;
@@ -33,14 +34,13 @@ namespace GUI
             InitializeComponent();
             DarkNet.Instance.SetWindowThemeWpf(this, Theme.Dark);
 
-            GameCombo.ItemsSource = new[]
+            ModeCombo.ItemsSource = new[]
             {
-                new { Name = "Genshin Impact", Icon = "pack://application:,,,/icons/hk4e.png", Id = "hk4e" },
-                new { Name = "Honkai: Star Rail", Icon = "pack://application:,,,/icons/hkrpg.png", Id = "hkrpg" },
-                new { Name = "Zenless Zone Zero", Icon = "pack://application:,,,/icons/nap.png", Id = "nap" },
-                // TODO: add hi3 support
-                //new { Name = "Honkai Impact 3rd", Icon = "pack://application:,,,/icons/bh3.png", Id = "bh3" }, // hi3 needs lot of hardcoded stuff cuz it's different
+                new ComboBoxItem() { Content = "Sophon" },
+                new ComboBoxItem() { Content = "Dispatch" }
             };
+
+            ResetGameCombo();
 
             this.Title = "Select Game Options";
         }
@@ -55,22 +55,72 @@ namespace GUI
             base.OnClosing(e);
         }
 
+        private void ResetGameCombo()
+        {
+            GameCombo.ItemsSource = null;
+            GameCombo.ItemsSource = new[]
+            {
+                new { Name = "Genshin Impact", Icon = "pack://application:,,,/icons/hk4e.png", Id = "hk4e" },
+                new { Name = "Honkai: Star Rail", Icon = "pack://application:,,,/icons/hkrpg.png", Id = "hkrpg" },
+                new { Name = "Zenless Zone Zero", Icon = "pack://application:,,,/icons/nap.png", Id = "nap" },
+                // TODO: add hi3 support
+                //new { Name = "Honkai Impact 3rd", Icon = "pack://application:,,,/icons/bh3.png", Id = "bh3" }, // hi3 needs lot of hardcoded stuff cuz it's different
+            };
+        }
+
+        private void ModeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ResetGameCombo();
+            GameCombo.IsEnabled = true;
+
+            ServerCombo.IsEnabled = false;
+            ServerCombo.ItemsSource = null;
+
+            VersionCombo.IsEnabled = false;
+            VersionCombo.ItemsSource = null;
+
+            CategoryCombo.IsEnabled = false;
+            CategoryCombo.ItemsSource = null;
+
+            ConfirmButton.IsEnabled = false;
+        }
+
         private async void GameCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (GameCombo.SelectedItem == null) return;
-            ServerCombo.IsEnabled = true;
-            ServerCombo.ItemsSource = null;
-            VersionCombo.IsEnabled = false;
-            CategoryCombo.IsEnabled = false;
-            VersionCombo.ItemsSource = null;
+
+            if ((string)(ModeCombo.SelectedItem as ComboBoxItem).Content == "Sophon")
+            {
+                ServerCombo.IsEnabled = true;
+                ServerCombo.ItemsSource = null;
+
+                ServerCombo.ItemsSource = new[]
+                {
+                    new ComboBoxItem() { Content = "OS" },
+                    new ComboBoxItem() { Content = "CN" }
+                };
+
+                VersionCombo.IsEnabled = false;
+                VersionCombo.ItemsSource = null;
+            } else
+            {
+                ServerCombo.IsEnabled = false;
+                ServerCombo.ItemsSource = null;
+
+                LoadingOverlay.Visibility = Visibility.Visible;
+                var versions = await Dispatch.GetDispatchVersions(((dynamic)GameCombo.SelectedItem).Id);
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+
+                VersionCombo.ItemsSource = versions;
+                VersionCombo.IsEnabled = true;
+            }
+
+                CategoryCombo.IsEnabled = false;
             CategoryCombo.ItemsSource = null;
+
             ConfirmButton.IsEnabled = false;
 
-            ServerCombo.ItemsSource = new[]
-            {
-                new ComboBoxItem() { Content = "OS" },
-                new ComboBoxItem() { Content = "CN" }
-            };
+            
         }
 
         private async void ServerCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -103,14 +153,27 @@ namespace GUI
             CategoryCombo.ItemsSource = null;
             ConfirmButton.IsEnabled = false;
 
-            LoadingOverlay.Visibility = Visibility.Visible;
-            var packages = await Meta.GetPackages((string)(ServerCombo.SelectedItem as ComboBoxItem).Content, (string)VersionCombo.SelectedItem, currentPackageId, currentPassword);
+            ComboBoxItem[] packageItems = Array.Empty<ComboBoxItem>();
 
-            ComboBoxItem[] packageItems = packages.Select(p =>
-                new ComboBoxItem() { Content = $"{p[1]} - {p[2]}", Tag = p[0] }
-            ).ToArray();
+            if ((string)(ModeCombo.SelectedItem as ComboBoxItem).Content == "Sophon")
+            {
+                LoadingOverlay.Visibility = Visibility.Visible;
+                var packages = await Meta.GetPackages((string)(ServerCombo.SelectedItem as ComboBoxItem).Content, (string)VersionCombo.SelectedItem, currentPackageId, currentPassword);
 
-            LoadingOverlay.Visibility = Visibility.Collapsed;
+                packageItems = packages.Select(p =>
+                    new ComboBoxItem() { Content = $"{p[1]} - {p[2]}", Tag = p[0] }
+                ).ToArray();
+
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+            } else
+            {
+                packageItems = new[]
+                {
+                    new ComboBoxItem() { Content = "Files", Tag = "files" },
+                    new ComboBoxItem() { Content = "ZIP", Tag = "zip" }
+                };
+            }
+
             CategoryCombo.ItemsSource = packageItems;
             CategoryCombo.IsEnabled = true;
         }
@@ -125,8 +188,9 @@ namespace GUI
             allowClose = true;
             SelectedGame = ((dynamic)GameCombo.SelectedItem)?.Id;
             SelectedServer = (ServerCombo.SelectedItem as ComboBoxItem)?.Content.ToString();
-            SelectedVersion = $"{VersionCombo.SelectedItem?.ToString()}.0";
             SelectedCategory = ((dynamic)CategoryCombo.SelectedItem)?.Tag;
+            SelectedMode = (ModeCombo.SelectedItem as ComboBoxItem)?.Content.ToString();
+            SelectedVersion = SelectedMode == "Sophon" ? $"{VersionCombo.SelectedItem?.ToString()}.0" : VersionCombo.SelectedItem?.ToString();
             DialogResult = true;
         }
     }
