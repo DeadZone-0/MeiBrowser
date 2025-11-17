@@ -143,6 +143,8 @@ namespace Core
                     break;
             }
 
+            if (urlBase.EndsWith("$4"))
+                urlBase = urlBase[..urlBase.LastIndexOf('/')];
             return (manifest, urlBase);
         }
     }

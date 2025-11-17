@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -98,55 +99,88 @@ namespace Core
             string filePath = Path.Combine(savePath, normalized);
             if (File.Exists(filePath))
             {
-                var md5 = Utils.GetMd5(File.ReadAllBytes(filePath));
-                if (md5 == asset.AssetHashMd5)
+                if (asset.AssetHashMd5 != "")
                 {
-                    onChunkDone(asset.AssetSize);
-                    return;
+                    var md5 = Utils.GetMd5(File.ReadAllBytes(filePath));
+                    if (md5 == asset.AssetHashMd5)
+                    {
+                        onChunkDone(asset.AssetSize);
+                        return;
+                    }
+                } else
+                {
+                    Console.WriteLine("No MD5 provided, redownloading file");
                 }
             }
 
-            // TODO: restart / retry if fail instead of skipping chunk silently
-            using var fs = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
-            if (fs.Length < asset.AssetSize) fs.SetLength(asset.AssetSize);
+            if (asset.AssetChunks.Count == 0) {
+                // dispatch
+                var url = $"{downloadUrl}";
+                if (!url.EndsWith(asset.AssetName))
+                {
+                    url = $"{downloadUrl}/{asset.AssetName}";
+                }
+                Console.WriteLine($"Downloading from {url}");
+                using var res = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+                var total = res.Content.Headers.ContentLength ?? 0;
 
-            foreach (var chunk in asset.AssetChunks)
+                using var s = await res.Content.ReadAsStreamAsync();
+                using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read);
+
+                var buf = new byte[81920];
+                long readTotal = 0;
+
+                int n;
+                while ((n = await s.ReadAsync(buf, 0, buf.Length)) > 0)
+                {
+                    fs.Write(buf, 0, n);
+                    readTotal += n;
+                    onChunkDone(n);
+                }
+            } else
             {
-                fs.Seek((long)chunk.ChunkOnFileOffset, SeekOrigin.Begin);
-                byte[] existing = new byte[chunk.ChunkSizeDecompressed];
-                fs.Read(existing, 0, existing.Length);
-                if (Utils.GetMd5(existing) == chunk.ChunkDecompressedHashMd5)
+                // sophon
+                using var fs = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
+                if (fs.Length < asset.AssetSize) fs.SetLength(asset.AssetSize);
+
+                foreach (var chunk in asset.AssetChunks)
                 {
-                    onChunkDone(existing.Length);
-                    continue;
+                    fs.Seek((long)chunk.ChunkOnFileOffset, SeekOrigin.Begin);
+                    byte[] existing = new byte[chunk.ChunkSizeDecompressed];
+                    fs.Read(existing, 0, existing.Length);
+                    if (Utils.GetMd5(existing) == chunk.ChunkDecompressedHashMd5)
+                    {
+                        onChunkDone(existing.Length);
+                        continue;
+                    }
+
+                    byte[] res;
+                    try { res = await http.GetByteArrayAsync($"{downloadUrl}/{chunk.ChunkName}"); }
+                    catch { Console.WriteLine($"Failed to download chunk"); continue; }
+
+                    byte[] decompressed;
+                    try
+                    {
+                        using var msIn = new MemoryStream(res);
+                        using var msOut = new MemoryStream();
+                        using var dctx = new ZstdNet.DecompressionStream(msIn);
+                        dctx.CopyTo(msOut);
+                        decompressed = msOut.ToArray();
+                    }
+                    catch { decompressed = new byte[chunk.ChunkSizeDecompressed]; }
+
+                    if (Utils.GetMd5(decompressed) != chunk.ChunkDecompressedHashMd5)
+                        decompressed = new byte[chunk.ChunkSizeDecompressed];
+
+                    fs.Seek((long)chunk.ChunkOnFileOffset, SeekOrigin.Begin);
+                    fs.Write(decompressed, 0, decompressed.Length);
+                    fs.Flush();
+                    onChunkDone(decompressed.Length);
                 }
 
-                byte[] res;
-                try { res = await http.GetByteArrayAsync($"{downloadUrl}/{chunk.ChunkName}"); }
-                catch { Console.WriteLine($"Failed to download chunk"); continue; }
-
-                byte[] decompressed;
-                try
-                {
-                    using var msIn = new MemoryStream(res);
-                    using var msOut = new MemoryStream();
-                    using var dctx = new ZstdNet.DecompressionStream(msIn);
-                    dctx.CopyTo(msOut);
-                    decompressed = msOut.ToArray();
-                }
-                catch { decompressed = new byte[chunk.ChunkSizeDecompressed]; }
-
-                if (Utils.GetMd5(decompressed) != chunk.ChunkDecompressedHashMd5)
-                    decompressed = new byte[chunk.ChunkSizeDecompressed];
-
-                fs.Seek((long)chunk.ChunkOnFileOffset, SeekOrigin.Begin);
-                fs.Write(decompressed, 0, decompressed.Length);
                 fs.Flush();
-                onChunkDone(decompressed.Length);
+                fs.Close();
             }
-
-            fs.Flush();
-            fs.Close();
 
             if (Utils.GetMd5(await File.ReadAllBytesAsync(filePath)) != asset.AssetHashMd5)
                 Console.WriteLine("Final file MD5 mismatch");
