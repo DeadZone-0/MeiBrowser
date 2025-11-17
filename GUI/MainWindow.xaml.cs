@@ -30,6 +30,8 @@ namespace GUI
         private long downloadSize = 0;
         private string downloadUrl = "";
 
+        private string appVersion = "1.0";
+
         public MainWindow()
         {
             InitializeComponent();
@@ -41,14 +43,14 @@ namespace GUI
             ConsoleHelper.ShowWindow(handle, ConsoleHelper.SW_SHOW);
             ConsoleHelper.SetConsoleTitle("Console");
 
-            Console.WriteLine("Hello World !");
+            Console.WriteLine($"Hello World !");
 
             RootItems = new ObservableCollection<FileItem> {};
             RootItem = new FileItem("root", 0);
             DataContext = this;
 
             this.WindowState = WindowState.Maximized;
-            this.Title = "MeiBrowser <3";
+            this.Title = $"MeiBrowser v{appVersion} - @Escartem <3";
         }
 
         #region package selection
