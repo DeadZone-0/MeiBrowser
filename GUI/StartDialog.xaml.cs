@@ -28,6 +28,7 @@ namespace GUI
 
         private string currentPackageId;
         private string currentPassword;
+        private string preDownloadPassword;
 
         private bool allowClose = false;
 
@@ -98,7 +99,7 @@ namespace GUI
         }
         private void ModeHelpButton_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("Sophon mode is the new method to download files, it is better & faster.\n\nDispatch mode is the old method, while older it provides content such as full game zip, update zip, and files from versions earlier than when sophon was available, consider it the legacy mode.", "Mode Information", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("Sophon mode is the new method to download files, it is better & faster.\n\nScattered files is the old method, while older it provides content such as full game zip, update zip, and files from versions earlier than when sophon was available, consider it the legacy mode.", "Mode Information", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         #endregion
@@ -199,12 +200,15 @@ namespace GUI
 
             currentPackageId = null;
             currentPassword = null;
+            preDownloadPassword = null;
 
             LoadingOverlay.Visibility = Visibility.Visible;
             dynamic metaData = await Meta.GetVersions(SelectedGame, SelectedServer);
             var versions = (List<string>)metaData.Item1;
             currentPackageId = (string)metaData.Item2;
             currentPassword = (string)metaData.Item3;
+            if ((string)metaData.Item4 != "")
+                preDownloadPassword = (string)metaData.Item4;
             LoadingOverlay.Visibility = Visibility.Collapsed;
 
             VersionCombo.ItemsSource = versions;
@@ -227,7 +231,12 @@ namespace GUI
             LoadingOverlay.Visibility = Visibility.Visible;
             if (SelectedMode == "Sophon")
             {
-                var packages = SelectedGame == "custom" ? await Meta.GetCustomPackages(customSophonUrl) : await Meta.GetPackages(SelectedServer, SelectedVersion, currentPackageId, currentPassword);
+                var password = currentPassword;
+                if (SelectedVersion.EndsWith(" (pre-download)") && preDownloadPassword != null)
+                {
+                    password = preDownloadPassword;
+                }
+                var packages = SelectedGame == "custom" ? await Meta.GetCustomPackages(customSophonUrl) : await Meta.GetPackages(SelectedServer, SelectedVersion, currentPackageId, password);
 
                 packageItems = packages.Select(p =>
                     new ComboBoxItem() { Content = $"{p[1]} - {p[2]}", Tag = p[0] }

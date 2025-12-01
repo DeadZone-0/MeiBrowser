@@ -12,7 +12,7 @@ namespace Core
     {
         private static readonly HttpClient client = new();
 
-        public static async Task<(List<string> versions, string packageId, string password)> GetVersions(string game, string region)
+        public static async Task<(List<string> versions, string packageId, string password, string preDownloadPassword)> GetVersions(string game, string region)
         {
             Console.WriteLine($"Fetching versions for {game} in {region}...");
 
@@ -28,20 +28,39 @@ namespace Core
             if (!versions.Contains(latest))
                 versions.Add(latest);
 
+            bool preDownloadAvailable = false;
+            if (gameMeta["data"]["game_branches"][0]["pre_download"]?.Type != JTokenType.Null)
+            {
+                var preLatest = (string)gameMeta["data"]["game_branches"][0]["pre_download"]["tag"];
+                preLatest = string.Join('.', preLatest.Split('.').Take(2));
+                if (!versions.Contains(preLatest))
+                    versions.Add($"{preLatest} (pre-download)");
+                preDownloadAvailable = true;
+            }
+
             versions.Sort();
             versions.Reverse();
 
             var packageId = (string)gameMeta["data"]["game_branches"][0]["main"]["package_id"];
             var password = (string)gameMeta["data"]["game_branches"][0]["main"]["password"];
+            var preDownloadPassword = preDownloadAvailable ? (string)gameMeta["data"]["game_branches"][0]["pre_download"]["password"] : "";
 
-            return (versions, packageId, password);
+
+            return (versions, packageId, password, preDownloadPassword);
         }
 
         public static async Task<List<string[]>> GetPackages(string region, string version, string packageId, string password)
         {
             Console.WriteLine($"Fetching packages for {packageId} password {password} in {region} version {version}...");
 
-            var build = await Sophon.GetBuild(region, packageId, password, $"{version}.0");
+            bool preDownload = false;
+            if (version.EndsWith(" (pre-download)"))
+            {
+                preDownload = true;
+                version = version.Replace(" (pre-download)", "");
+            }
+
+            var build = await Sophon.GetBuild(region, packageId, password, $"{version}.0", preDownload);
 
             return await GetPackagesInternal(build);
         }

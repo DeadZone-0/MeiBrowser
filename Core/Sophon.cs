@@ -19,11 +19,14 @@ namespace Core
             return metaJson;
         }
 
-        public static async Task<JObject> GetBuild(string region, string packageId, string password, string version)
+        public static async Task<JObject> GetBuild(string region, string packageId, string password, string version, bool preDownload=false)
         {
             var sophonData = Utils.sophonMap[region];
+            var branchName = preDownload ? "pre_download" : branch;
             var buildUrl =
-                $"{sophonData["sophonBase"]}?branch={branch.Replace("_", "")}&package_id={packageId}&password={password}&plat_app={sophonData["platApp"]}&tag={version}";
+                $"{sophonData["sophonBase"]}?branch={branchName.Replace("_", "")}&package_id={packageId}&password={password}&plat_app={sophonData["platApp"]}";
+            if (!preDownload)
+                buildUrl += $"&tag={version}";
             Console.WriteLine(buildUrl);
             var buildJson = JObject.Parse(await client.GetStringAsync(buildUrl));
             return buildJson;
@@ -51,11 +54,19 @@ namespace Core
             {
                 var metaJson = await GetGameBranches(game, region);
 
-                var gameMeta = metaJson["data"]["game_branches"][0][branch];
+                bool preDownload = false;
+                if (version.EndsWith(" (pre-download).0")) // weird workaround
+                {
+                    version = version.Replace(" (pre-download).0", "");
+                    preDownload = true;
+                }
+
+                var branchName = preDownload ? "pre_download" : branch;
+                var gameMeta = metaJson["data"]["game_branches"][0][branchName];
                 string packageId = gameMeta["package_id"]!.ToString();
                 string password = gameMeta["password"]!.ToString();
 
-                buildJson = await GetBuild(region, packageId, password, version);
+                buildJson = await GetBuild(region, packageId, password, version, preDownload);
             } else
             {
                 buildJson = await GetCustomBuild(region);
