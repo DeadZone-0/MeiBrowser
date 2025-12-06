@@ -1,11 +1,10 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 using ZstdNet;
 
 namespace Core
 {
     public class Sophon
     {
-        // TODO: add support for pre_download branch
         private static readonly string branch = "main";
         private static readonly HttpClient client = new();
 
